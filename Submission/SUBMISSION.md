@@ -21,6 +21,9 @@ The developer pushes source code to GitHub. Jenkins runs on an EC2 instance, bui
   - `git fetch upstream`
   - `git merge upstream/main`
   - `git push origin main`
+
+## 2.Containerize the Application
+
 - Inspect the source project and Docker configuration
   - `docker compose config --services`
   ![alt text](docker_compose_config.png)
@@ -48,3 +51,138 @@ The developer pushes source code to GitHub. Jenkins runs on an EC2 instance, bui
 - Validate Local Frontend
   - Open `http://localhost:3000` and confirm that the home page loads.
     ![alt text](frontend.png)
+
+## 3.AWS CLI & ECR Setup
+
+- Verify AWS CLI installation
+  - `aws --version`
+- Configure the named AWS CLI Profile
+
+  ```bash
+  aws configure --profile streamingapp
+  aws sts get-caller-identity --profile streamingapp
+  ```
+  
+  ![alt text](AWS_profile.png)
+
+- Set reusable local variables
+  
+  ```powershell
+    $env:AWS_PROFILE = "streamingapp"
+    $env:AWS_REGION  = "ap-south-1"
+    $AWS_ACCOUNT_ID = aws sts get-caller-identity --profile $env:AWS_PROFILE --query Account --output text
+    $env:ECR_REGISTRY = "$AWS_ACCOUNT_ID.dkr.ecr.$env:AWS_REGION.amazonaws.com"
+  ```
+
+- Create private ECR repositories
+
+```Powershell
+  $repos = @(
+    "streaming-frontend",
+    "streaming-auth",
+    "streaming-streaming",
+    "streaming-admin",
+    "streaming-chat"
+  )
+
+  foreach ($repo in $repos) {
+    aws ecr create-repository `
+      --repository-name $repo `
+      --image-scanning-configuration scanOnPush=true `
+      --region $env:AWS_REGION `
+      --profile $env:AWS_PROFILE
+  }
+
+```
+
+- Verify ECR Repositories
+
+```bash
+  aws ecr describe-repositories --region ap-south-1 --profile streamingapp --query "repositories[].repositoryName" --output table
+```
+
+![alt text](ECR_Repos.png)
+
+![alt text](ECR_Repos_CLI.png)
+
+- Log Docker in to ECR
+
+```bash
+aws ecr get-login-password --region "$AWS_REGION" --profile "$AWS_PROFILE" | \
+docker login --username AWS --password-stdin "$ECR_REGISTRY"
+```
+
+![alt text](ECR_docker_login.png)
+
+- Build the frontend image for AMD64
+
+    ```bash
+      docker buildx build --platform linux/amd64 `
+      -t "$env:ECR_REGISTRY/streaming-frontend:$env:IMAGE_TAG" `
+      --push `
+      .\frontend
+    ```
+![alt text](FE_image.png)
+
+- Build Image for Authentication Service in backend
+
+  ```bash
+    docker buildx build --platform linux/amd64 `
+      -t "$env:ECR_REGISTRY/streaming-auth:$env:IMAGE_TAG" `
+      --push `
+      .\backend\authService
+  ```
+  ![alt text](AS_image.png)
+- Build Image for Streaming Service in backend
+
+```bash
+docker buildx build --platform linux/amd64 `
+  -t "$env:ECR_REGISTRY/streaming-streaming:$env:IMAGE_TAG" `
+  --push `
+  .\backend\streamingService
+```
+![alt text](SS_image.png)
+
+- Build Image for Admin Service in Backend
+
+```bash
+docker buildx build --platform linux/amd64 `
+  -t "$env:ECR_REGISTRY/streaming-admin:$env:IMAGE_TAG" `
+  --push `
+  .\backend\adminService
+```
+![alt text](SA_image.png)
+
+- Building Image for Chat Service in Backend
+```bash
+docker buildx build --platform linux/amd64 `
+  -t "$env:ECR_REGISTRY/streaming-chat:$env:IMAGE_TAG" `
+  --push `
+  .\backend\chatService
+```
+![alt text](CS_image.png)
+
+- Verify the Image architecture and ECR Tags
+```bash
+$env:AWS_REGION = "ap-south-1"
+$env:AWS_PROFILE = "streamingapp"
+
+$repos = @(
+  "streaming-frontend",
+  "streaming-auth",
+  "streaming-streaming",
+  "streaming-admin",
+  "streaming-chat"
+)
+
+foreach ($repo in $repos) {
+  Write-Host "`n$repo"
+  aws ecr describe-images `
+    --repository-name $repo `
+    --region $env:AWS_REGION `
+    --profile $env:AWS_PROFILE `
+    --query "imageDetails[].imageTags" `
+    --output table
+}
+```
+![alt text](ECR_Tags_Validation.png)
