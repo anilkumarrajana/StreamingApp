@@ -6,7 +6,7 @@ The source application is included in `StreamingApp/.` Infrastructure-as-code re
 
 # Architecture
 
-![alt text](image.png)
+![alt text](architecture.png)
 
 The developer pushes source code to GitHub. Jenkins runs on an EC2 instance, builds the Docker images, pushes versioned images to ECR, and sends build notifications through SNS. EKS pulls the images from ECR. An NGINX Ingress load balancer exposes the frontend and API routes. MongoDB stores application data on EBS, while the streaming service uses an IRSA IAM role to access the private S3 bucket. Container Insights sends EKS logs and metrics to CloudWatch.
 
@@ -30,8 +30,11 @@ The developer pushes source code to GitHub. Jenkins runs on an EC2 instance, bui
   ![alt text](docker_desktop_check.png)
 - Start the MERN Application Locally
   - `docker compose up -d --build`
+    ![alt text](docker_compose_up.png)
   - `docker compose ps`
+    ![alt text](composeps.png)
   - `docker compose images`
+    ![alt text](composeimages.png)
 - Check container logs when required
 
     ```bash
@@ -42,3 +45,6 @@ The developer pushes source code to GitHub. Jenkins runs on an EC2 instance, bui
     docker compose logs --tail=100 chat
     ```
 
+- Validate Local Frontend
+  - Open `http://localhost:3000` and confirm that the home page loads.
+    ![alt text](frontend.png)
