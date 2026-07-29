@@ -6,6 +6,12 @@ pipeline {
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '10'))
   }
+
+  environment {
+    // Disable BuildKit to prevent looking for missing buildx plugin
+    DOCKER_BUILDKIT = '0'
+  }
+
   parameters {
     choice(
       name: 'AWS_REGION',
@@ -20,7 +26,7 @@ pipeline {
   }
 
   stages {
-    // 1. Checkout first so repo code is available to all stages
+    // 1. Checkout repository first
     stage('Checkout') {
       steps {
         checkout scm
@@ -30,7 +36,7 @@ pipeline {
     stage('Initialize AWS configuration') {
       steps {
         script {
-          // Free Docker system resources before build starts
+          // Clean unused Docker resources before build
           sh 'docker system prune -af || true'
 
           withAWS(credentials: 'aws-credentials-id', region: params.AWS_REGION) {
@@ -86,7 +92,6 @@ pipeline {
     stage('Build images') {
       steps {
         sh '''
-          # Frontend image with increased Node heap size to prevent OOM
           docker build --platform linux/amd64 \
             --build-arg NODE_OPTIONS="--max-old-space-size=2048" \
             --build-arg REACT_APP_AUTH_API_URL=/api \
@@ -135,7 +140,7 @@ pipeline {
 
   post {
     always {
-      // Clean up unused Docker resources after every run
+      // Automatic cleanup to prevent disk space exhaustion
       sh 'docker system prune -af || true'
     }
 
