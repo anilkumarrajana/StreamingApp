@@ -6,11 +6,6 @@ pipeline {
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '10'))
   }
-
-  environment {
-    DOCKER_BUILDKIT = '1'
-  }
-
   parameters {
     choice(
       name: 'AWS_REGION',
