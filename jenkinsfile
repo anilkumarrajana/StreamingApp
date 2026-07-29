@@ -8,7 +8,7 @@ pipeline {
   }
 
   environment {
-    // Disable BuildKit to prevent dependency on missing docker-buildx plugin
+    // Disable BuildKit to prevent looking for missing buildx plugin
     DOCKER_BUILDKIT = '0'
   }
 
@@ -26,7 +26,6 @@ pipeline {
   }
 
   stages {
-    // 1. Checkout repository first so workspace files are ready
     stage('Checkout') {
       steps {
         checkout scm
@@ -86,6 +85,10 @@ pipeline {
     }
 
     stage('Build images') {
+      options {
+        // Prevent build from hanging indefinitely on low-RAM/CPU instances
+        timeout(time: 15, unit: 'MINUTES')
+      }
       steps {
         sh '''
           docker build --platform linux/amd64 \
