@@ -55,21 +55,29 @@ pipeline {
     }
 
     stage('Preflight') {
-      steps {
-        sh '''
-          docker version --format '{{.Server.Version}}'
-          aws sts get-caller-identity --region "$AWS_REGION"
-        '''
-      }
+    steps {
+        script {
+        withAWS(credentials: 'aws-credentials-id', region: params.AWS_REGION) {
+            sh '''
+            docker version --format '{{.Server.Version}}'
+            aws sts get-caller-identity --region "$AWS_REGION"
+            '''
+        }
+        }
+    }
     }
 
     stage('Login to ECR') {
-      steps {
-        sh '''
-          aws ecr get-login-password --region "$AWS_REGION" | \
-          docker login --username AWS --password-stdin "$ECR_REGISTRY"
-        '''
-      }
+    steps {
+        script {
+        withAWS(credentials: 'aws-credentials-id', region: params.AWS_REGION) {
+            sh '''
+            aws ecr get-login-password --region "$AWS_REGION" | \
+            docker login --username AWS --password-stdin "$ECR_REGISTRY"
+            '''
+        }
+        }
+    }
     }
 
     stage('Build images') {
