@@ -22,26 +22,30 @@ pipeline {
 
   stages {
     stage('Initialize AWS configuration') {
-      steps {
+    steps {
         script {
-          env.AWS_REGION = params.AWS_REGION
-          env.SNS_TOPIC_ARN = params.SNS_TOPIC_ARN
+        withAWS(credentials: 'aws-credentials-id', region: params.AWS_REGION) {
 
-          env.AWS_ACCOUNT_ID = sh(
+            // Set region and SNS topic from parameters
+            env.AWS_REGION    = params.AWS_REGION
+            env.SNS_TOPIC_ARN = params.SNS_TOPIC_ARN
+
+            // Get AWS account ID using the configured credentials & region
+            env.AWS_ACCOUNT_ID = sh(
             script: 'aws sts get-caller-identity --query Account --output text',
             returnStdout: true
-          ).trim()
+            ).trim()
 
-          env.ECR_REGISTRY =
-            "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
-
-          env.IMAGE_TAG = "jenkins-${env.BUILD_NUMBER}"
+            // Build ECR registry and image tag
+            env.ECR_REGISTRY = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
+            env.IMAGE_TAG    = "jenkins-${env.BUILD_NUMBER}"
         }
 
         echo "Using AWS region: ${env.AWS_REGION}"
         echo "Using ECR registry: ${env.ECR_REGISTRY}"
         echo "Using image tag: ${env.IMAGE_TAG}"
-      }
+        }
+    }
     }
 
     stage('Checkout') {
