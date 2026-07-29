@@ -8,7 +8,7 @@ pipeline {
   }
 
   environment {
-    // Disable BuildKit to prevent looking for missing buildx plugin
+    // Disable BuildKit to prevent dependency on missing docker-buildx plugin
     DOCKER_BUILDKIT = '0'
   }
 
@@ -26,7 +26,7 @@ pipeline {
   }
 
   stages {
-    // 1. Checkout repository first
+    // 1. Checkout repository first so workspace files are ready
     stage('Checkout') {
       steps {
         checkout scm
@@ -36,22 +36,18 @@ pipeline {
     stage('Initialize AWS configuration') {
       steps {
         script {
-          // Clean unused Docker resources before build
+          // Free Docker system storage prior to starting build steps
           sh 'docker system prune -af || true'
 
           withAWS(credentials: 'aws-credentials-id', region: params.AWS_REGION) {
-
-            // Set region and SNS topic from parameters
             env.AWS_REGION    = params.AWS_REGION
             env.SNS_TOPIC_ARN = params.SNS_TOPIC_ARN
 
-            // Get AWS account ID using configured credentials & region
             env.AWS_ACCOUNT_ID = sh(
               script: 'aws sts get-caller-identity --query Account --output text',
               returnStdout: true
             ).trim()
 
-            // Build ECR registry and image tag
             env.ECR_REGISTRY = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com"
             env.IMAGE_TAG    = "jenkins-${env.BUILD_NUMBER}"
           }
@@ -140,7 +136,7 @@ pipeline {
 
   post {
     always {
-      // Automatic cleanup to prevent disk space exhaustion
+      // Clean up unused Docker resources after every run
       sh 'docker system prune -af || true'
     }
 
